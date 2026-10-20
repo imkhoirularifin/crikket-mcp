@@ -1,0 +1,42 @@
+services:
+  crikket-mcp:
+    image: crikket-mcp:0.1.0
+    pull_policy: never
+    networks: [coolify]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN}
+      PUBLIC_HOST: crikket-mcp.arifin.dev
+      CRIKKET_APP_URL: https://crikket.arifin.dev
+      STORAGE_ENDPOINT: https://crikket-files.arifin.dev
+      STORAGE_BUCKET: crikket
+      STORAGE_REGION: us-east-1
+      STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID}
+      STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY}
+    mem_limit: 256m
+    memswap_limit: 256m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/healthz',timeout=4).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.crikket-mcp-http.entrypoints=http
+      - traefik.http.routers.crikket-mcp-http.rule=Host(`crikket-mcp.arifin.dev`)
+      - traefik.http.routers.crikket-mcp-http.middlewares=redirect-to-https@file
+      - traefik.http.routers.crikket-mcp.entrypoints=https
+      - traefik.http.routers.crikket-mcp.rule=Host(`crikket-mcp.arifin.dev`)
+      - traefik.http.routers.crikket-mcp.tls=true
+      - traefik.http.routers.crikket-mcp.tls.certresolver=letsencrypt
+      - traefik.http.routers.crikket-mcp.service=crikket-mcp
+      - traefik.http.services.crikket-mcp.loadbalancer.server.port=8080
+networks:
+  coolify:
+    external: true
